@@ -5,6 +5,13 @@ Format: [Semantic Versioning](https://semver.org) · [Keep a Changelog](https://
 
 ---
 
+## [0.3.3] — 2026-05-20
+
+### Added
+- **임팩트 분포 히스토그램** — `/stats` 임팩트 탭, 1~5점 수평 바 (수동=보라, 자동=녹색), 수동 마킹 비율 % 표시
+
+---
+
 ## [0.3.2] — 2026-05-20
 
 ### Added

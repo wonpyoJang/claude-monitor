@@ -21,6 +21,7 @@ type DayRow = {
 
 type ExtRow = { ext: string; edits: number; cost: number };
 type ProjectRow = { project: string; cost: number; sessions: number; turns: number };
+type ImpactRow = { impact_score: number; impact_source: string | null; count: number };
 
 function fmtCost(n: number) {
   const v = Number(n);
@@ -72,9 +73,10 @@ export default async function StatsPage({
   let rows: DayRow[] = [];
   let extRows: ExtRow[] = [];
   let projectRows: ProjectRow[] = [];
+  let impactRows: ImpactRow[] = [];
 
   try {
-    const [dailyRes, extRes, projRes] = await Promise.all([
+    const [dailyRes, extRes, projRes, impactRes] = await Promise.all([
       pool.query(
         `SELECT
           to_char(DATE(t.ts), 'YYYY-MM-DD') AS day,
@@ -126,11 +128,23 @@ export default async function StatsPage({
          LIMIT 15`,
         [auth.sub, days]
       ),
+      pool.query(
+        `SELECT impact_score, impact_source, COUNT(*)::int AS count
+         FROM turns t
+         JOIN devices d ON d.id = t.device_id
+         WHERE d.user_id = $1
+           AND t.ts >= NOW() - ($2 || ' days')::interval
+           AND t.impact_score IS NOT NULL
+         GROUP BY impact_score, impact_source
+         ORDER BY impact_score`,
+        [auth.sub, days]
+      ),
     ]);
 
     rows = dailyRes.rows as DayRow[];
     extRows = extRes.rows as ExtRow[];
     projectRows = projRes.rows as ProjectRow[];
+    impactRows = impactRes.rows as ImpactRow[];
   } finally {
     await pool.end();
   }
@@ -161,6 +175,7 @@ export default async function StatsPage({
     { id: "overview", label: "전체 추세" },
     { id: "languages", label: "언어별" },
     { id: "projects", label: "프로젝트별" },
+    { id: "impact", label: "임팩트" },
   ];
 
   const extTotal = extRows.reduce((s, r) => s + Number(r.cost), 0);
@@ -404,6 +419,80 @@ export default async function StatsPage({
             )}
           </div>
         )}
+
+        {/* ── impact tab ── */}
+        {tab === "impact" && (() => {
+          const totalImpact = impactRows.reduce((s, r) => s + r.count, 0);
+          const manualCount = impactRows.filter((r) => r.impact_source === "manual").reduce((s, r) => s + r.count, 0);
+          const manualRate = totalImpact > 0 ? manualCount / totalImpact : 0;
+
+          // 1~5 점별 집계 (수동/자동 분리)
+          const byScore: Record<number, { manual: number; auto: number }> = {};
+          for (let i = 1; i <= 5; i++) byScore[i] = { manual: 0, auto: 0 };
+          for (const r of impactRows) {
+            const sc = r.impact_score;
+            if (sc >= 1 && sc <= 5) {
+              if (r.impact_source === "manual") byScore[sc].manual += r.count;
+              else byScore[sc].auto += r.count;
+            }
+          }
+          const maxCount = Math.max(...Object.values(byScore).map((v) => v.manual + v.auto), 1);
+
+          return (
+            <div className="section" style={{ paddingTop: 32 }}>
+              <div className="section-head">
+                <h2>임팩트 분포</h2>
+                <span className="meta">{totalImpact}건 기록</span>
+              </div>
+
+              {totalImpact === 0 ? (
+                <div style={{ color: "var(--ink-4)", fontFamily: "var(--font-mono)", fontSize: 13 }}>데이터 없음</div>
+              ) : (
+                <>
+                  {/* 신뢰도 카드 */}
+                  <div style={{ marginBottom: 32 }}>
+                    <span className="mono" style={{ fontSize: 13, color: "var(--ink-3)" }}>
+                      수동 마킹 비율 <span style={{ color: "var(--ink)", fontWeight: 600 }}>{(manualRate * 100).toFixed(1)}%</span>
+                      <span style={{ marginLeft: 12, color: "var(--ink-4)" }}>({manualCount}/{totalImpact})</span>
+                    </span>
+                  </div>
+
+                  {/* 1~5 수평 바 차트 */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {[1, 2, 3, 4, 5].map((sc) => {
+                      const { manual, auto } = byScore[sc];
+                      const total_ = manual + auto;
+                      const pctManual = total_ > 0 ? (manual / maxCount) * 100 : 0;
+                      const pctAuto = total_ > 0 ? (auto / maxCount) * 100 : 0;
+                      return (
+                        <div key={sc} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                          <span className="mono" style={{ width: 16, fontSize: 13, color: "var(--ink-3)", flexShrink: 0 }}>{sc}</span>
+                          <div style={{ flex: 1, height: 16, display: "flex", borderRadius: 2, overflow: "hidden", background: "var(--bg-2)" }}>
+                            <div style={{ width: `${pctManual}%`, background: "oklch(0.55 0.12 295)", transition: "width .3s" }} title={`수동 ${manual}`} />
+                            <div style={{ width: `${pctAuto}%`, background: "oklch(0.72 0.06 120)", transition: "width .3s" }} title={`자동 ${auto}`} />
+                          </div>
+                          <span className="mono tnum" style={{ width: 28, fontSize: 11, color: "var(--ink-3)", textAlign: "right", flexShrink: 0 }}>{total_}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* 범례 */}
+                  <div style={{ marginTop: 16, display: "flex", gap: 16 }}>
+                    <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}>
+                      <span style={{ width: 10, height: 10, borderRadius: 2, background: "oklch(0.55 0.12 295)", display: "inline-block" }} />
+                      <span className="mono" style={{ color: "var(--ink-3)" }}>수동(★)</span>
+                    </span>
+                    <span style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11 }}>
+                      <span style={{ width: 10, height: 10, borderRadius: 2, background: "oklch(0.72 0.06 120)", display: "inline-block" }} />
+                      <span className="mono" style={{ color: "var(--ink-3)" }}>자동</span>
+                    </span>
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })()}
 
         {/* 추가 요약 */}
         <div className="section">

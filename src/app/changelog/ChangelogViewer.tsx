@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 
-const APP_VERSION = "0.3.2";
+const APP_VERSION = "0.3.3";
 const SEEN_KEY = "cm_last_seen_version";
 
 type Release = {
