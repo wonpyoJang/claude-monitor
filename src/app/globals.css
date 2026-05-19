@@ -244,6 +244,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
 /* ─── grid helpers ───────────────────────────────────────────── */
 .stat-grid { display: grid; gap: 0; }
 .stat-grid-2 { grid-template-columns: repeat(2, 1fr); }
+.stat-grid-3 { grid-template-columns: repeat(3, 1fr); }
 .stat-grid-4 { grid-template-columns: repeat(4, 1fr); }
 .stat-grid-item {
   padding: 0 24px 0 0;

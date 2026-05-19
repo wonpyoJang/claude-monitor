@@ -5,6 +5,13 @@ Format: [Semantic Versioning](https://semver.org) · [Keep a Changelog](https://
 
 ---
 
+## [0.3.1] — 2026-05-20
+
+### Added
+- **에이전트 건강 지표 카드** — 오류율·위임율·성공률 3개 카드, 이전 7일 대비 ↑↓ 배지
+
+---
+
 ## [0.3.0] — 2026-05-20
 
 ### Added

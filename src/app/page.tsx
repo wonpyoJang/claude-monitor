@@ -31,6 +31,13 @@ type DeviceRow = {
   sessions_7d: number;
 };
 
+type HealthRow = {
+  error_rate_7d: string;
+  delegation_rate_7d: string;
+  error_rate_prev: string;
+  delegation_rate_prev: string;
+};
+
 type SessionRow = {
   id: string;
   device_id: string;
@@ -95,9 +102,10 @@ export default async function Home() {
   let devices: DeviceRow[] = [];
   let sessions: SessionRow[] = [];
   let sparkData: SparkPoint[] = [];
+  let health: HealthRow = { error_rate_7d: "0", delegation_rate_7d: "0", error_rate_prev: "0", delegation_rate_prev: "0" };
 
   try {
-    const [sumRes, devRes, sessRes, sparkRes] = await Promise.all([
+    const [sumRes, devRes, sessRes, sparkRes, healthRes] = await Promise.all([
       pool.query(
         `SELECT
           COALESCE(SUM(CASE WHEN t.ts >= NOW()-INTERVAL '1 day'  THEN t.cost_usd ELSE 0 END), 0)  AS today_cost,
@@ -166,6 +174,33 @@ export default async function Home() {
          ORDER BY 1`,
         [session.sub]
       ),
+      pool.query(
+        `SELECT
+           COALESCE(SUM(CASE WHEN t.ts >= NOW()-INTERVAL '7 days'
+             THEN t.error_count ELSE 0 END)::float
+             / NULLIF(SUM(CASE WHEN t.ts >= NOW()-INTERVAL '7 days'
+             THEN t.tool_calls ELSE 0 END), 0), 0) AS error_rate_7d,
+           COALESCE(SUM(CASE WHEN t.ts >= NOW()-INTERVAL '7 days'
+             THEN COALESCE(t.agent_spawned, 0) ELSE 0 END)::float
+             / NULLIF(SUM(CASE WHEN t.ts >= NOW()-INTERVAL '7 days'
+             THEN 1 ELSE 0 END), 0), 0) AS delegation_rate_7d,
+           COALESCE(SUM(CASE WHEN t.ts >= NOW()-INTERVAL '14 days'
+             AND t.ts < NOW()-INTERVAL '7 days'
+             THEN t.error_count ELSE 0 END)::float
+             / NULLIF(SUM(CASE WHEN t.ts >= NOW()-INTERVAL '14 days'
+             AND t.ts < NOW()-INTERVAL '7 days'
+             THEN t.tool_calls ELSE 0 END), 0), 0) AS error_rate_prev,
+           COALESCE(SUM(CASE WHEN t.ts >= NOW()-INTERVAL '14 days'
+             AND t.ts < NOW()-INTERVAL '7 days'
+             THEN COALESCE(t.agent_spawned, 0) ELSE 0 END)::float
+             / NULLIF(SUM(CASE WHEN t.ts >= NOW()-INTERVAL '14 days'
+             AND t.ts < NOW()-INTERVAL '7 days'
+             THEN 1 ELSE 0 END), 0), 0) AS delegation_rate_prev
+         FROM turns t
+         JOIN devices d ON d.id = t.device_id
+         WHERE d.user_id = $1`,
+        [session.sub]
+      ),
     ]);
 
     summary = sumRes.rows[0] as SummaryRow;
@@ -177,6 +212,7 @@ export default async function Home() {
         day: r.day as string,
         value: (r.cost_sum as number) / (r.turn_count as number),
       }));
+    if (healthRes.rows[0]) health = healthRes.rows[0] as HealthRow;
   } finally {
     await pool.end();
   }
@@ -262,6 +298,59 @@ export default async function Home() {
             </div>
           )}
         </div>
+
+        {/* 에이전트 건강 지표 */}
+        {(() => {
+          const errRate = Number(health.error_rate_7d);
+          const delRate = Number(health.delegation_rate_7d);
+          const successRate = 1 - errRate;
+          const errPrev = Number(health.error_rate_prev);
+          const delPrev = Number(health.delegation_rate_prev);
+          const successPrev = 1 - errPrev;
+
+          function trend(curr: number, prev: number, lowerIsBetter: boolean) {
+            if (prev === 0) return null;
+            const diff = curr - prev;
+            const pct = Math.abs(diff / prev) * 100;
+            if (pct < 1) return null;
+            const improved = lowerIsBetter ? diff < 0 : diff > 0;
+            return {
+              label: `${improved ? "↓" : "↑"} ${pct.toFixed(0)}%`,
+              good: improved,
+            };
+          }
+
+          const cards = [
+            { label: "오류율", value: `${(errRate * 100).toFixed(1)}%`, hint: "↓ 낮을수록 좋음", tr: trend(errRate, errPrev, true) },
+            { label: "위임율", value: `${(delRate * 100).toFixed(1)}%`, hint: "참고용", tr: trend(delRate, delPrev, false) },
+            { label: "성공률", value: `${(successRate * 100).toFixed(1)}%`, hint: "↑ 높을수록 좋음", tr: trend(successRate, successPrev, false) },
+          ];
+
+          return (
+            <div className="section">
+              <div className="section-head">
+                <h2>에이전트 건강</h2>
+                <span className="meta">7일 기준 · 이전 7일 대비</span>
+              </div>
+              <div className="stat-grid stat-grid-3">
+                {cards.map((c) => (
+                  <div key={c.label} className="stat-grid-item">
+                    <div className="label" style={{ marginBottom: 8 }}>{c.label}</div>
+                    <div className="stat-num tnum">{c.value}</div>
+                    <div style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 6 }}>
+                      <span className="mono" style={{ fontSize: 11, color: "var(--ink-4)" }}>{c.hint}</span>
+                      {c.tr && (
+                        <span className={`chip ${c.tr.good ? "acc" : "bad"}`} style={{ fontSize: 10, padding: "1px 5px" }}>
+                          {c.tr.label}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
 
         {/* 디바이스 함대 */}
         <div className="section">
