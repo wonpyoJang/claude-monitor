@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import LogoutButton from "./LogoutButton";
 import CopyButton from "./CopyButton";
+import ProfileForm from "./ProfileForm";
 
 export const dynamic = "force-dynamic";
 
@@ -12,12 +13,17 @@ export default async function SettingsPage() {
 
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
   let ingestToken = "";
+  let displayName = "";
+  let avatarEmoji = "🧑‍💻";
   try {
     const result = await pool.query(
-      "SELECT ingest_token FROM users WHERE id = $1",
+      "SELECT ingest_token, display_name, avatar_emoji FROM users WHERE id = $1",
       [session.sub]
     );
-    ingestToken = (result.rows[0] as { ingest_token: string })?.ingest_token ?? "";
+    const row = result.rows[0] as { ingest_token: string; display_name: string | null; avatar_emoji: string | null } | undefined;
+    ingestToken = row?.ingest_token ?? "";
+    displayName = row?.display_name ?? "";
+    avatarEmoji = row?.avatar_emoji ?? "🧑‍💻";
   } finally {
     await pool.end();
   }
@@ -52,6 +58,8 @@ export default async function SettingsPage() {
           <h2 className="font-semibold mb-3 text-zinc-300">계정</h2>
           <p className="text-zinc-400 text-xs">{session.email}</p>
         </section>
+
+        <ProfileForm initialName={displayName} initialEmoji={avatarEmoji} />
 
         {/* INGEST TOKEN */}
         <section className="mb-6 border border-zinc-800 rounded p-4 bg-zinc-900">
@@ -97,6 +105,20 @@ export default async function SettingsPage() {
             </div>
 
             <p className="text-zinc-500">설치 완료 후 Claude Code 세션이 끝날 때마다 자동으로 대시보드에 기록됩니다.</p>
+          </div>
+        </section>
+
+        {/* APP VERSION */}
+        <section className="mb-6 border border-zinc-800 rounded p-4 bg-zinc-900">
+          <h2 className="font-semibold mb-3 text-zinc-300">버전</h2>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-zinc-400 text-xs">앱 버전 <span className="text-zinc-200 font-mono">v0.2.0</span></p>
+              <p className="text-zinc-600 text-xs mt-1">클라이언트 버전은 자동 업데이트됩니다.</p>
+            </div>
+            <a href="/changelog" className="text-xs text-zinc-400 hover:text-zinc-100 border border-zinc-700 rounded px-2 py-1">
+              출시노트 보기
+            </a>
           </div>
         </section>
 

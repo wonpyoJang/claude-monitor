@@ -1,0 +1,44 @@
+# Changelog
+
+All notable changes to Claude Monitor are documented here.
+Format: [Semantic Versioning](https://semver.org) · [Keep a Changelog](https://keepachangelog.com)
+
+---
+
+## [0.3.0] — 2026-05-20
+
+### Added
+- **세션 상태 배지** — 세션 목록에서 오류(빨간 점), 고비용(주황 텍스트, 평균 2배 초과), 에이전트 위임(파란 배지) 시각화
+- **7일 cost/turn 스파크라인** — 요약 카드 아래 미니 추세 차트 표시 (데이터 없으면 숨김)
+
+---
+
+## [0.2.0] — 2026-05-19
+
+### Added
+- **팀 랭킹전** — 초대 코드 기반으로 팀 생성·가입, 팀원끼리 Claude 사용 지표 비교
+- **부문별 시상 뷰** — 6개 부문 (💰 Heavy Hitter · 💡 Most Efficient · 🎯 Cache Genius · 🤖 Agent Champion · ⚡ Token Burner · 🚀 Automation Rate)
+- **종합 점수 뷰** — 효율성·캐시히트율·에이전트 비율·기여도를 가중 평균한 복합 점수 (가중치 실시간 조정 가능)
+- **닉네임 & 아바타** — 설정 페이지에서 이모지 아바타와 20자 이하 닉네임 설정, 랭킹보드에 반영
+- **기간 필터** — 랭킹보드에서 7일 / 30일 / 90일 / 전체 기간 선택
+- **팀 소프트 삭제** — 팀 소유자가 팀을 삭제해도 데이터 보존 (`deleted_at` 마킹)
+- **버전 관리 & 출시노트** — `/changelog` 페이지, Topbar "New" 배지
+- **앱 버전 표시** — 설정 페이지 하단
+
+### Fixed
+- PostgreSQL NUMERIC/BIGINT → string 타입 문제로 랭킹보드 크래시 수정
+- CSS 디자인 토큰 전면 수정 (`--accent` 등 → `--acc`, `--ink` 등)
+
+---
+
+## [0.1.0] — 2026-05-16
+
+### Added
+- **대시보드** — 일별 비용·토큰·턴 수 집계 및 7일 추이 차트
+- **멀티디바이스** — 여러 Mac에서 동시 사용, 디바이스별 집계
+- **세션 상세** — 세션별 턴 목록, 비용·캐시·에이전트 지표
+- **통계 페이지** — 언어별 비용 분포, 일별 상세 테이블
+- **Claude Code 연동** — Stop Hook (`log-turn.py`) 자동 수집
+- **인증** — 이메일·패스워드 회원가입/로그인, JWT 세션
+- **멀티유저** — 계정별 데이터 완전 격리, ingest token 발급
+- **클라이언트 설치** — 원라이너 설치 스크립트 (`/install.sh`)

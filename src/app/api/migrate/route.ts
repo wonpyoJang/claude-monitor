@@ -67,6 +67,25 @@ const SCHEMA_STATEMENTS = [
   `CREATE INDEX IF NOT EXISTS idx_turns_session ON turns (session_id)`,
   `CREATE INDEX IF NOT EXISTS idx_sessions_device_last ON sessions (device_id, last_turn_at DESC)`,
   `CREATE INDEX IF NOT EXISTS idx_devices_user ON devices (user_id)`,
+  `CREATE TABLE IF NOT EXISTS teams (
+    id BIGSERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    invite_code TEXT UNIQUE NOT NULL,
+    created_by TEXT REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE TABLE IF NOT EXISTS team_members (
+    team_id BIGINT REFERENCES teams(id) ON DELETE CASCADE,
+    user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+    joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    PRIMARY KEY (team_id, user_id)
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_team_members_user ON team_members (user_id)`,
+  `DO $$ BEGIN
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name TEXT;
+    ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_emoji TEXT DEFAULT '🧑‍💻';
+    ALTER TABLE teams ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+  EXCEPTION WHEN OTHERS THEN NULL; END $$`,
 ];
 
 export async function GET(req: NextRequest) {
@@ -88,5 +107,5 @@ export async function GET(req: NextRequest) {
     await pool.end();
   }
 
-  return NextResponse.json({ ok: true, tables: ["users", "devices", "sessions", "turns"] });
+  return NextResponse.json({ ok: true, tables: ["users", "devices", "sessions", "turns", "teams", "team_members"] });
 }

@@ -1,0 +1,27 @@
+.observation {
+  padding-top: 64px;
+  padding-bottom: 64px;
+  border-top: 1px solid var(--line-hair);
+}
+
+.obsGrid {
+  display: grid;
+  gap: 64px;
+  align-items: start;
+}
+
+@media (max-width: 720px) {
+  .obsGrid {
+    grid-template-columns: 1fr !important;
+    gap: 32px;
+  }
+
+  .obsGrid > div {
+    order: unset !important;
+    text-align: left !important;
+  }
+
+  .obsGrid > div > div {
+    justify-content: flex-start !important;
+  }
+}
