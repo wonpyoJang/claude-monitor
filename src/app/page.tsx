@@ -254,11 +254,11 @@ export default async function Home() {
                   const name = d.alias ?? d.hostname ?? d.id.slice(0, 8);
                   const isActive = new Date(d.last_seen).getTime() > Date.now() - 5 * 60 * 1000;
                   return (
-                    <tr key={d.id} className="clickable" onClick={() => { window.location.href = `/devices/${d.id}`; }}>
+                    <ClickableTr key={d.id} href={`/devices/${d.id}`} className="clickable">
                       <td>
                         <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
                           <span className={`dot ${isActive ? "live" : "idle"}`} />
-                          <a href={`/devices/${d.id}`} style={{ fontWeight: 500 }}>{name}</a>
+                          <span style={{ fontWeight: 500 }}>{name}</span>
                         </div>
                       </td>
                       <td className="mono" style={{ fontSize: 12, color: "var(--ink-3)" }}>
@@ -274,7 +274,7 @@ export default async function Home() {
                       <td className="mono" style={{ textAlign: "right", color: "var(--ink-4)", fontSize: 11 }}>
                         {d.client_version ? `v${d.client_version}` : "—"}
                       </td>
-                    </tr>
+                    </ClickableTr>
                   );
                 })}
               </tbody>
@@ -309,11 +309,8 @@ export default async function Home() {
                   <td className="mono" style={{ fontSize: 12, color: "var(--ink-3)" }}>
                     {fmtTime(s.last_turn_at)}
                   </td>
-                  <td>
-                    <a href={`/devices/${s.device_id}`} style={{ color: "var(--ink-3)", fontSize: 13 }}
-                      onClick={(e) => e.stopPropagation()}>
-                      {s.device_alias ?? s.device_id.slice(0, 8)}
-                    </a>
+                  <td style={{ color: "var(--ink-3)", fontSize: 13 }}>
+                    {s.device_alias ?? s.device_id.slice(0, 8)}
                   </td>
                   <td className="mono" style={{ fontSize: 12, color: "var(--ink-3)", maxWidth: "14rem" }}>
                     <span className="tbl-truncate" title={s.cwd ?? ""}>{cwdShort(s.cwd)}</span>
