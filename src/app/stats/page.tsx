@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Topbar from "@/app/Topbar";
 import DailyCharts, { type DailyPoint } from "@/app/components/DailyCharts";
+import ExtBarChart from "@/app/components/ExtBarChart";
 
 export const dynamic = "force-dynamic";
 
@@ -309,11 +310,16 @@ export default async function StatsPage({
           <div className="section" style={{ paddingTop: 32 }}>
             <div className="section-head">
               <h2>언어별 작업 분포</h2>
-              <span className="meta">file_exts 집계</span>
+              <span className="meta">file_exts 집계 · 상위 {extRows.length}개</span>
             </div>
             {extRows.length === 0 ? (
               <div style={{ color: "var(--ink-4)", fontFamily: "var(--font-mono)", fontSize: 13 }}>데이터 없음</div>
             ) : (
+              <>
+                <div style={{ marginBottom: 32 }}>
+                  <div className="label" style={{ marginBottom: 12 }}>편집 수 기준</div>
+                  <ExtBarChart data={extRows.map((r) => ({ ext: r.ext, edits: Number(r.edits), cost: Number(r.cost) }))} />
+                </div>
               <table className="tbl">
                 <thead>
                   <tr>
@@ -345,6 +351,7 @@ export default async function StatsPage({
                   ))}
                 </tbody>
               </table>
+              </>
             )}
           </div>
         )}

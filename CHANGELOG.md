@@ -5,6 +5,13 @@ Format: [Semantic Versioning](https://semver.org) · [Keep a Changelog](https://
 
 ---
 
+## [0.3.2] — 2026-05-20
+
+### Added
+- **언어별 편집 수 바 차트** — `/stats` 언어탭에 확장자별 수평 바 차트 (Recharts) 추가, 기간 필터 연동
+
+---
+
 ## [0.3.1] — 2026-05-20
 
 ### Added
