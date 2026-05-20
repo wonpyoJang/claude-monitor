@@ -4,6 +4,7 @@ import { notFound, redirect } from "next/navigation";
 import Topbar from "@/app/Topbar";
 import ClickableTr from "@/app/ClickableTr";
 import DailyCharts, { type DailyPoint } from "@/app/components/DailyCharts";
+import TrendCharts, { type TrendPoint } from "@/app/components/TrendCharts";
 
 export const dynamic = "force-dynamic";
 
@@ -35,7 +36,7 @@ type StatRow = {
   avg_cache_hit: number;
 };
 
-type DailyRow = { day: string; cost: number; turns: number };
+type DailyRow = { day: string; cost: number; turns: number; cache_hit_rate: number; error_rate: number };
 
 function fmtCost(n: string | number | null) {
   if (n == null) return "—";
@@ -91,6 +92,7 @@ export default async function DeviceDetailPage({
   let sessions: SessionRow[] = [];
   let stats: StatRow = { total_cost: "0", total_turns: 0, total_sessions: 0, total_errors: 0, avg_cache_hit: 0 };
   let dailyData: DailyPoint[] = [];
+  let rawDailyRows: DailyRow[] = [];
 
   try {
     const [devRes, sessRes, statRes, dailyRes] = await Promise.all([
@@ -119,7 +121,9 @@ export default async function DeviceDetailPage({
         `SELECT
           to_char(DATE(ts), 'YYYY-MM-DD') AS day,
           COALESCE(SUM(cost_usd), 0)::float AS cost,
-          COUNT(*)::int AS turns
+          COUNT(*)::int AS turns,
+          COALESCE(AVG(cache_hit_rate), 0)::float AS cache_hit_rate,
+          COALESCE(SUM(error_count)::float / NULLIF(SUM(tool_calls), 0), 0)::float AS error_rate
          FROM turns
          WHERE device_id = $1 AND ts >= NOW() - INTERVAL '30 days'
          GROUP BY DATE(ts)
@@ -132,7 +136,8 @@ export default async function DeviceDetailPage({
     device = devRes.rows[0] as DeviceMeta;
     sessions = sessRes.rows as SessionRow[];
     stats = statRes.rows[0] as StatRow;
-    dailyData = buildDailyTimeline(dailyRes.rows as DailyRow[]);
+    rawDailyRows = dailyRes.rows as DailyRow[];
+    dailyData = buildDailyTimeline(rawDailyRows);
   } finally {
     await pool.end();
   }
@@ -141,6 +146,20 @@ export default async function DeviceDetailPage({
   const isActive = new Date(device!.last_seen).getTime() > Date.now() - 5 * 60 * 1000;
   const costPerTurn =
     stats.total_turns > 0 ? Number(stats.total_cost) / stats.total_turns : 0;
+
+  // 효율 추세 데이터 (TrendCharts용 — 날짜 오름차순)
+  const trendData: TrendPoint[] = rawDailyRows.map((r) => {
+    const d = new Date(r.day + "T00:00:00Z");
+    return {
+      day: `${d.getUTCMonth() + 1}/${d.getUTCDate()}`,
+      cost: r.cost,
+      turns: r.turns,
+      cache_hit_rate: r.cache_hit_rate ?? 0,
+    };
+  });
+
+  // 현재 작업 패널 — 가장 최근 세션
+  const latestSession = sessions[0] ?? null;
 
   return (
     <>
@@ -194,10 +213,33 @@ export default async function DeviceDetailPage({
           ))}
         </div>
 
+        {/* 현재 작업 패널 */}
+        {latestSession && (
+          <div className="section" style={{ borderTop: "none", paddingTop: 0, marginBottom: 0 }}>
+            <div className="section-head">
+              <h2>현재 작업</h2>
+              <span className="meta">{fmtTime(latestSession.last_turn_at)}</span>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div className="mono" style={{ fontSize: 13, color: "var(--ink-3)" }}>
+                {cwdShort(latestSession.cwd)}
+              </div>
+              <div style={{ display: "flex", gap: 16, marginTop: 4 }}>
+                <span className="mono" style={{ fontSize: 11, color: "var(--ink-4)" }}>
+                  {latestSession.total_turns}턴
+                </span>
+                <span className="mono tnum" style={{ fontSize: 11, color: "var(--ink-4)" }}>
+                  {fmtCost(latestSession.total_cost_usd)}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* 30일 차트 */}
         <div className="section" style={{ borderTop: "none", paddingTop: 0 }}>
           <div className="section-head">
-            <h2>30일 추세</h2>
+            <h2>30일 비용 · 턴 추세</h2>
             <span className="meta">
               캐시 적중률 평균 {stats.avg_cache_hit > 0 ? `${(stats.avg_cache_hit * 100).toFixed(0)}%` : "—"}
               &nbsp;· 에러 {stats.total_errors > 0 ? stats.total_errors : "없음"}
@@ -205,6 +247,17 @@ export default async function DeviceDetailPage({
           </div>
           <DailyCharts data={dailyData} />
         </div>
+
+        {/* 효율 추세 차트 (캐시 적중률·에러율) */}
+        {trendData.length > 0 && (
+          <div className="section">
+            <div className="section-head">
+              <h2>효율 추세</h2>
+              <span className="meta">7일 이동평균</span>
+            </div>
+            <TrendCharts data={trendData} />
+          </div>
+        )}
 
         {/* 최근 세션 */}
         <div className="section">
