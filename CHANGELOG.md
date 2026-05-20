@@ -5,6 +5,17 @@ Format: [Semantic Versioning](https://semver.org) · [Keep a Changelog](https://
 
 ---
 
+## [0.5.0] — 2026-05-20
+
+### Added
+- **세션 자동 제목·요약** — Stop hook에서 Claude Haiku API로 제목(20자↓)·요약(100자↓) 생성 (`ANTHROPIC_API_KEY` 필요)
+- **세션 목록 제목 표시** — 제목 있으면 제목+경로, 없으면 cwd 폴백
+- **세션 상세 헤더** — 제목·요약 표시
+
+> DB 마이그레이션 필요: `/api/migrate?token=<INGEST_TOKEN>`
+
+---
+
 ## [0.4.0] — 2026-05-20
 
 ### Added

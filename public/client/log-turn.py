@@ -275,6 +275,16 @@ def main():
     }
 
     LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+
+    # Generate session title/summary via Haiku if not yet set for this session
+    prev_entries = _read_session_log(session_id)
+    if not any(e.get("session_title") for e in prev_entries):
+        title, summary = _generate_session_meta(entry, prev_entries)
+        if title:
+            entry["session_title"] = title
+        if summary:
+            entry["session_summary"] = summary
+
     try:
         with open(LOG_PATH, "a", encoding="utf-8") as f:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
@@ -283,6 +293,85 @@ def main():
 
     send_to_monitor(entry)
     return 0
+
+
+def _read_session_log(session_id: str) -> list:
+    """Read all log entries for the given session_id."""
+    entries = []
+    try:
+        with open(LOG_PATH, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    obj = json.loads(line)
+                    if obj.get("session_id") == session_id:
+                        entries.append(obj)
+                except json.JSONDecodeError:
+                    pass
+    except (FileNotFoundError, OSError):
+        pass
+    return entries
+
+
+def _generate_session_meta(entry: dict, prev_entries: list) -> tuple:
+    """Call Claude Haiku to generate a session title and summary. Returns (title, summary)."""
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        return None, None
+
+    # Aggregate session context
+    cwd = entry.get("cwd") or ""
+    all_entries = prev_entries + [entry]
+    notes = [e.get("impact_note") for e in all_entries if e.get("impact_note")]
+    total_tool_calls = sum(e.get("tool_calls") or 0 for e in all_entries)
+    agg_exts: dict = {}
+    for e in all_entries:
+        for k, v in (e.get("file_exts") or {}).items():
+            agg_exts[k] = agg_exts.get(k, 0) + v
+    top_exts = sorted(agg_exts.items(), key=lambda x: -x[1])[:5]
+
+    project = cwd.rstrip("/").split("/")[-1] if cwd else "unknown"
+    exts_str = ", ".join(f"{ext}×{cnt}" for ext, cnt in top_exts) or "없음"
+    notes_str = "; ".join(notes[:5]) if notes else "없음"
+
+    prompt = (
+        f"작업 디렉토리: {project}\n"
+        f"파일 확장자 편집: {exts_str}\n"
+        f"도구 호출 수: {total_tool_calls}\n"
+        f"임팩트 노트: {notes_str}\n\n"
+        "위 세션 정보를 바탕으로 JSON 형식으로 응답하세요:\n"
+        '{"title": "20자 이하 한국어 제목", "summary": "100자 이하 한국어 한 줄 요약"}'
+    )
+
+    try:
+        import urllib.request as urlreq
+        payload = json.dumps({
+            "model": "claude-haiku-4-5-20251001",
+            "max_tokens": 128,
+            "messages": [{"role": "user", "content": prompt}],
+        }).encode()
+        req = urlreq.Request(
+            "https://api.anthropic.com/v1/messages",
+            data=payload,
+            headers={
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json",
+            },
+        )
+        with urlreq.urlopen(req, timeout=8) as resp:
+            data = json.loads(resp.read().decode())
+        text = (data.get("content") or [{}])[0].get("text", "")
+        # Extract JSON from response
+        m = re.search(r'\{[^}]+\}', text, re.DOTALL)
+        if m:
+            obj = json.loads(m.group(0))
+            return obj.get("title"), obj.get("summary")
+    except Exception:
+        pass
+    return None, None
 
 
 def load_monitor_config():

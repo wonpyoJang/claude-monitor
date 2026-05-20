@@ -37,6 +37,8 @@ type SessionMeta = {
   device_alias: string | null;
   device_id: string;
   duration_s: number | null;
+  title: string | null;
+  summary: string | null;
 };
 
 function fmtCost(n: string | number | null) {
@@ -179,8 +181,13 @@ export default async function SessionDetailPage({
         </div>
 
         <h1 className="page-title" style={{ fontSize: 32 }}>
-          {meta!.cwd ? meta!.cwd.split("/").slice(-2).join("/") : "세션 상세"}
+          {meta!.title ?? (meta!.cwd ? meta!.cwd.split("/").slice(-2).join("/") : "세션 상세")}
         </h1>
+        {meta!.summary && (
+          <p style={{ marginTop: 8, marginBottom: 0, color: "var(--ink-3)", fontSize: 14, maxWidth: "52rem" }}>
+            {meta!.summary}
+          </p>
+        )}
 
         {/* 메타 정보 */}
         <div style={{ display: "flex", gap: 24, marginTop: 16, paddingTop: 16,
