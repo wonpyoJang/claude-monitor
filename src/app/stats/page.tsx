@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import Topbar from "@/app/Topbar";
 import DailyCharts, { type DailyPoint } from "@/app/components/DailyCharts";
 import ExtBarChart from "@/app/components/ExtBarChart";
+import TrendCharts, { type TrendPoint } from "@/app/components/TrendCharts";
 
 export const dynamic = "force-dynamic";
 
@@ -165,6 +166,16 @@ export default async function StatsPage({
 
   const costPerTurn = total.turns > 0 ? total.cost / total.turns : 0;
 
+  // TrendCharts 데이터 (날짜 오름차순)
+  const trendData: TrendPoint[] = [...rows]
+    .sort((a, b) => a.day.localeCompare(b.day))
+    .map((r) => ({
+      day: `${new Date(r.day + "T00:00:00Z").getUTCMonth() + 1}/${new Date(r.day + "T00:00:00Z").getUTCDate()}`,
+      cost: r.cost,
+      turns: r.turns,
+      cache_hit_rate: r.cache_hit_rate,
+    }));
+
   const periods = [
     { label: "30일", value: "30" },
     { label: "90일", value: "90" },
@@ -263,6 +274,16 @@ export default async function StatsPage({
               </div>
               <DailyCharts data={chart} />
             </div>
+
+            {trendData.length >= 7 && (
+              <div className="section">
+                <div className="section-head">
+                  <h2>효율 추세</h2>
+                  <span className="meta">7일 이동평균</span>
+                </div>
+                <TrendCharts data={trendData} />
+              </div>
+            )}
 
             <div className="section">
               <div className="section-head">
