@@ -52,6 +52,7 @@ type SessionRow = {
   duration_s: number | null;
   agent_spawned: number | null;
   avg_cost: string | null;
+  title: string | null;
 };
 
 function fmtCostShort(n: number | string): string {
@@ -142,7 +143,7 @@ export default async function Home() {
         `WITH session_data AS (
            SELECT s.id, s.device_id, d.alias AS device_alias,
              s.cwd, s.started_at, s.last_turn_at,
-             s.total_turns, s.total_cost_usd,
+             s.total_turns, s.total_cost_usd, s.title,
              MAX(t.impact_score) AS impact_score,
              COALESCE(SUM(t.error_count), 0)::int AS error_count,
              SUM(t.session_duration_s)::int AS duration_s,
@@ -423,8 +424,7 @@ export default async function Home() {
             <thead>
               <tr>
                 <th>최근 활동</th>
-                <th>디바이스</th>
-                <th>작업 경로</th>
+                <th>세션</th>
                 <th style={{ textAlign: "right" }}>소요</th>
                 <th style={{ textAlign: "right" }}>턴</th>
                 <th style={{ textAlign: "right" }}>비용</th>
@@ -440,14 +440,26 @@ export default async function Home() {
                 const hasAgent = (s.agent_spawned ?? 0) > 0;
                 return (
                   <ClickableTr key={s.id} href={`/sessions/${s.id}`} className="clickable">
-                    <td className="mono" style={{ fontSize: 12, color: "var(--ink-3)" }}>
+                    <td className="mono" style={{ fontSize: 12, color: "var(--ink-3)", whiteSpace: "nowrap" }}>
                       {fmtTime(s.last_turn_at)}
                     </td>
-                    <td style={{ color: "var(--ink-3)", fontSize: 13 }}>
-                      {s.device_alias ?? s.device_id.slice(0, 8)}
-                    </td>
-                    <td className="mono" style={{ fontSize: 12, color: "var(--ink-3)", maxWidth: "14rem" }}>
-                      <span className="tbl-truncate" title={s.cwd ?? ""}>{cwdShort(s.cwd)}</span>
+                    <td style={{ maxWidth: "18rem" }}>
+                      <div style={{ fontWeight: s.title ? 500 : 400, fontSize: 13, color: s.title ? "var(--ink)" : "var(--ink-3)" }}>
+                        <span className="tbl-truncate" title={s.title ?? s.cwd ?? ""}>
+                          {s.title ?? cwdShort(s.cwd)}
+                        </span>
+                      </div>
+                      {s.title && (
+                        <div className="mono" style={{ fontSize: 11, color: "var(--ink-4)" }}>
+                          <span className="tbl-truncate" title={s.cwd ?? ""}>{cwdShort(s.cwd)}</span>
+                          {s.device_alias && <span style={{ marginLeft: 6 }}>· {s.device_alias}</span>}
+                        </div>
+                      )}
+                      {!s.title && (
+                        <div style={{ fontSize: 11, color: "var(--ink-4)" }}>
+                          {s.device_alias ?? s.device_id.slice(0, 8)}
+                        </div>
+                      )}
                     </td>
                     <td className="mono tnum" style={{ textAlign: "right", color: "var(--ink-3)", fontSize: 12 }}>
                       {fmtDuration(s.duration_s)}

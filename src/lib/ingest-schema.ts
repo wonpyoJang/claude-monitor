@@ -27,6 +27,8 @@ export const turnPayload = z.object({
   file_exts: z.record(z.string(), z.number().int()).optional().nullable(),
   error_count: z.number().int().nonnegative().optional().nullable(),
   agent_spawned: z.number().int().nonnegative().optional().nullable(),
+  session_title: z.string().max(40).optional().nullable(),
+  session_summary: z.string().max(200).optional().nullable(),
   raw: z.record(z.string(), z.unknown()).optional().nullable(),
 });
 

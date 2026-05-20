@@ -53,16 +53,21 @@ export async function POST(req: NextRequest) {
 
     await pool.query(
       `INSERT INTO sessions (id, device_id, cwd, started_at, last_turn_at,
-         total_turns, total_input_tokens, total_output_tokens, total_cost_usd)
-       VALUES ($1, $2, $3, $4, $4, 1, $5, $6, $7)
+         total_turns, total_input_tokens, total_output_tokens, total_cost_usd,
+         title, summary)
+       VALUES ($1, $2, $3, $4, $4, 1, $5, $6, $7, $8, $9)
        ON CONFLICT (id) DO UPDATE SET
          last_turn_at = GREATEST(sessions.last_turn_at, EXCLUDED.last_turn_at),
          total_turns = sessions.total_turns + 1,
          total_input_tokens = sessions.total_input_tokens + $5,
          total_output_tokens = sessions.total_output_tokens + $6,
          total_cost_usd = sessions.total_cost_usd + $7,
-         cwd = COALESCE(EXCLUDED.cwd, sessions.cwd)`,
-      [t.session_id, t.device.id, t.cwd ?? null, t.ts, t.tokens_input ?? 0, t.tokens_output ?? 0, t.cost_usd ?? 0]
+         cwd = COALESCE(EXCLUDED.cwd, sessions.cwd),
+         title = COALESCE(sessions.title, EXCLUDED.title),
+         summary = COALESCE(sessions.summary, EXCLUDED.summary)`,
+      [t.session_id, t.device.id, t.cwd ?? null, t.ts,
+       t.tokens_input ?? 0, t.tokens_output ?? 0, t.cost_usd ?? 0,
+       t.session_title ?? null, t.session_summary ?? null]
     );
 
     await pool.query(
