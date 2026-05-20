@@ -150,15 +150,28 @@ export default async function SessionDetailPage({
     .map(([ext, count]) => ({ ext, count }));
 
   // 차트 데이터
-  const turnPoints: TurnPoint[] = turns.map((t, i) => ({
-    idx: i + 1,
-    cost: Number(t.cost_usd ?? 0),
-    input: t.tokens_input ?? 0,
-    output: t.tokens_output ?? 0,
-    tools: t.tool_calls ?? 0,
-    edits: t.edit_calls ?? 0,
-    errors: t.error_count ?? 0,
-  }));
+  const avgTurnCost = turns.length > 0
+    ? turns.reduce((s, t) => s + Number(t.cost_usd ?? 0), 0) / turns.length
+    : 0;
+  let cumCostAcc = 0;
+  const turnPoints: TurnPoint[] = turns.map((t, i) => {
+    const cost = Number(t.cost_usd ?? 0);
+    cumCostAcc += cost;
+    return {
+      idx: i + 1,
+      cost,
+      cumCost: cumCostAcc,
+      input: t.tokens_input ?? 0,
+      output: t.tokens_output ?? 0,
+      tools: t.tool_calls ?? 0,
+      edits: t.edit_calls ?? 0,
+      errors: t.error_count ?? 0,
+      isExpensive: avgTurnCost > 0 && cost > avgTurnCost * 2,
+    };
+  });
+
+  // 캐시 절약 추정 (Sonnet 기준: input=$3/MTok, cache_read=$0.30/MTok)
+  const cacheSavingsUsd = totalCacheRead * (3.0 - 0.30) / 1_000_000;
 
   // 가장 비싼 턴 3개
   const topCostly = [...turns]
@@ -200,6 +213,16 @@ export default async function SessionDetailPage({
         <div style={{ marginBottom: 8, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <span className="chip">{id.slice(0, 16)}</span>
           {totalErrors > 0 && <span className="chip bad">{totalErrors} 에러</span>}
+          {cacheSavingsUsd >= 0.001 && (
+            <span className="chip" style={{ background: "oklch(0.96 0.05 145)", color: "oklch(0.40 0.18 145)", borderColor: "transparent" }}>
+              캐시 절약 ≈ ${cacheSavingsUsd.toFixed(4)}
+            </span>
+          )}
+          {fileExts.length > 0 && (
+            <span className="chip" style={{ fontFamily: "var(--font-mono)", fontSize: 11 }}>
+              ✏️ {fileExts.slice(0, 3).map((e) => `${e.ext}×${e.count}`).join(" · ")}
+            </span>
+          )}
         </div>
 
         <h1 className="page-title" style={{ fontSize: 32 }}>

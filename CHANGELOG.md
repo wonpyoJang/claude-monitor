@@ -5,6 +5,15 @@ Format: [Semantic Versioning](https://semver.org) · [Keep a Changelog](https://
 
 ---
 
+## [0.8.1] — 2026-05-20
+
+### Added
+- **캐시 절약 배지** — 세션 헤더에 "캐시 절약 ≈ $X.XXXX" 칩 (Sonnet 기준 추정)
+- **에디트 집중 구간 배지** — 세션 헤더에 Top 3 편집 확장자×횟수 칩 표시
+- **누적 비용 타임라인 차트** — 고비용 턴 마커(빨간 점) 포함 Area 차트 추가
+
+---
+
 ## [0.8.0] — 2026-05-20
 
 ### Added
