@@ -221,9 +221,62 @@ export default async function Home() {
   const now = new Date(fetchedAt);
   const dateStr = now.toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "long" });
 
+  // CoachStripe 인사이트 계산
+  type InsightType = "warning" | "win" | "observation";
+  type Insight = { type: InsightType; icon: string; text: string } | null;
+  let coachInsight: Insight = null;
+  {
+    const errRate7d = Number(health.error_rate_7d);
+    const errRatePrev = Number(health.error_rate_prev);
+    const delegRate7d = Number(health.delegation_rate_7d);
+    if (errRate7d > 0.1 && errRate7d > errRatePrev * 1.3) {
+      coachInsight = {
+        type: "warning",
+        icon: "⚠",
+        text: `에러율이 이전 주 대비 ${((errRate7d / Math.max(errRatePrev, 0.001) - 1) * 100).toFixed(0)}% 급등했습니다. (7일 평균 ${(errRate7d * 100).toFixed(1)}%)`,
+      };
+    } else if (delegRate7d > 0.15) {
+      coachInsight = {
+        type: "observation",
+        icon: "●",
+        text: `이번 주 ${(delegRate7d * 100).toFixed(0)}%의 턴에서 에이전트를 위임했습니다. 위임 패턴을 확인해보세요.`,
+      };
+    }
+  }
+
   return (
     <>
       <Topbar fetchedAt={fetchedAt} />
+
+      {/* CoachStripe — 최우선 인사이트 배너 */}
+      {coachInsight && (
+        <div style={{
+          background: coachInsight.type === "warning" ? "var(--bad-bg)" : "var(--acc-bg)",
+          borderBottom: `1px solid ${coachInsight.type === "warning" ? "var(--bad)" : "var(--acc)"}`,
+          padding: "10px 32px",
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          fontSize: 13,
+        }}>
+          <span style={{
+            color: coachInsight.type === "warning" ? "var(--bad)" : "var(--acc)",
+            fontFamily: "var(--font-mono)",
+            fontWeight: 700,
+            fontSize: 14,
+            flexShrink: 0,
+          }}>{coachInsight.icon}</span>
+          <span style={{ color: "var(--ink)", flex: 1 }}>{coachInsight.text}</span>
+          <a href="/coach" style={{
+            color: "var(--ink-3)",
+            textDecoration: "none",
+            fontFamily: "var(--font-mono)",
+            fontSize: 11,
+            flexShrink: 0,
+            whiteSpace: "nowrap",
+          }}>자세히 보기 →</a>
+        </div>
+      )}
 
       <main className="page">
         {/* Editorial header */}
