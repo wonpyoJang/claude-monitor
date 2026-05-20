@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import Topbar from "./Topbar";
 import ClickableTr from "./ClickableTr";
 import Sparkline, { SparkPoint } from "./components/Sparkline";
+import CoachStripe from "./components/CoachStripe";
 
 export const dynamic = "force-dynamic";
 
@@ -279,6 +280,8 @@ export default async function Home() {
       )}
 
       <main className="page">
+        <CoachStripe />
+
         {/* Editorial header */}
         <div style={{ marginBottom: 48 }}>
           <div className="label" style={{ marginBottom: 12 }}>{dateStr}</div>

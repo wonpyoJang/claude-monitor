@@ -5,6 +5,15 @@ Format: [Semantic Versioning](https://semver.org) · [Keep a Changelog](https://
 
 ---
 
+## [0.7.0] — 2026-05-20
+
+### Added
+- **에이전트 코치** — `/coach` 페이지, DB 규칙 기반 인사이트 카드 (오류율·캐시율·비용급등·임팩트 성과), 전체/경고/성과 탭 필터
+- **CoachStripe** — 대시보드 상단 최상위 인사이트 1건 미리보기 + 코치 바로가기
+- **Topbar 코치 링크** — 네비게이션에 `코치` 항목 추가
+
+---
+
 ## [0.6.0] — 2026-05-20
 
 ### Added
