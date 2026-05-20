@@ -11,12 +11,15 @@ const EMOJIS = [
 export default function ProfileForm({
   initialName,
   initialEmoji,
+  initialLeaderboard,
 }: {
   initialName: string;
   initialEmoji: string;
+  initialLeaderboard: boolean;
 }) {
   const [name, setName] = useState(initialName);
   const [emoji, setEmoji] = useState(initialEmoji || "🧑‍💻");
+  const [inLeaderboard, setInLeaderboard] = useState(initialLeaderboard);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +32,7 @@ export default function ProfileForm({
       const res = await fetch("/api/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ display_name: name, avatar_emoji: emoji }),
+        body: JSON.stringify({ display_name: name, avatar_emoji: emoji, show_in_leaderboard: inLeaderboard }),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "저장 실패"); return; }
@@ -85,6 +88,21 @@ export default function ProfileForm({
           <span className="text-zinc-600 text-xs w-10 text-right">{name.length}/20</span>
         </div>
         <p className="text-zinc-600 text-xs mt-1">비워두면 랭킹보드에 이메일 앞자리가 표시됩니다.</p>
+      </div>
+
+      {/* Leaderboard toggle */}
+      <div className="mb-4">
+        <div className="text-zinc-500 text-xs mb-2 uppercase tracking-widest">효율 랭킹 참여</div>
+        <label className="flex items-center gap-3 cursor-pointer select-none">
+          <div
+            onClick={() => setInLeaderboard((v) => !v)}
+            className={`relative w-10 h-6 rounded-full transition-colors ${inLeaderboard ? "bg-emerald-600" : "bg-zinc-700"}`}
+          >
+            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${inLeaderboard ? "translate-x-5" : "translate-x-1"}`} />
+          </div>
+          <span className="text-zinc-400 text-sm">{inLeaderboard ? "참여 중" : "참여 안 함"}</span>
+        </label>
+        <p className="text-zinc-600 text-xs mt-1">켜면 동일 서비스를 쓰는 사람들과 효율 지표가 비교됩니다.</p>
       </div>
 
       <div className="flex items-center gap-3">

@@ -15,15 +15,17 @@ export default async function SettingsPage() {
   let ingestToken = "";
   let displayName = "";
   let avatarEmoji = "🧑‍💻";
+  let showInLeaderboard = false;
   try {
     const result = await pool.query(
-      "SELECT ingest_token, display_name, avatar_emoji FROM users WHERE id = $1",
+      "SELECT ingest_token, display_name, avatar_emoji, show_in_leaderboard FROM users WHERE id = $1",
       [session.sub]
     );
-    const row = result.rows[0] as { ingest_token: string; display_name: string | null; avatar_emoji: string | null } | undefined;
+    const row = result.rows[0] as { ingest_token: string; display_name: string | null; avatar_emoji: string | null; show_in_leaderboard: boolean } | undefined;
     ingestToken = row?.ingest_token ?? "";
     displayName = row?.display_name ?? "";
     avatarEmoji = row?.avatar_emoji ?? "🧑‍💻";
+    showInLeaderboard = row?.show_in_leaderboard ?? false;
   } finally {
     await pool.end();
   }
@@ -59,7 +61,7 @@ export default async function SettingsPage() {
           <p className="text-zinc-400 text-xs">{session.email}</p>
         </section>
 
-        <ProfileForm initialName={displayName} initialEmoji={avatarEmoji} />
+        <ProfileForm initialName={displayName} initialEmoji={avatarEmoji} initialLeaderboard={showInLeaderboard} />
 
         {/* INGEST TOKEN */}
         <section className="mb-6 border border-zinc-800 rounded p-4 bg-zinc-900">

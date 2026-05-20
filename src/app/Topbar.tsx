@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
-const APP_VERSION = "0.5.0";
+const APP_VERSION = "0.6.0";
 const SEEN_KEY = "cm_last_seen_version";
 
 export default function Topbar({ fetchedAt }: { fetchedAt?: string }) {
@@ -20,6 +20,7 @@ export default function Topbar({ fetchedAt }: { fetchedAt?: string }) {
   const navItems = [
     { href: "/", label: "대시보드" },
     { href: "/stats", label: "통계" },
+    { href: "/leaderboard", label: "🏆" },
     { href: "/mirror", label: "거울" },
     { href: "/teams", label: "팀 랭킹" },
     { href: "/changelog", label: "출시노트", badge: hasNew },

@@ -12,16 +12,17 @@ export async function GET() {
   const pool = new Pool({ connectionString: process.env.DATABASE_URL });
   try {
     const result = await pool.query(
-      "SELECT ingest_token, display_name, avatar_emoji FROM users WHERE id = $1",
+      "SELECT ingest_token, display_name, avatar_emoji, show_in_leaderboard FROM users WHERE id = $1",
       [session.sub]
     );
-    const row = result.rows[0] as { ingest_token: string; display_name: string | null; avatar_emoji: string | null } | undefined;
+    const row = result.rows[0] as { ingest_token: string; display_name: string | null; avatar_emoji: string | null; show_in_leaderboard: boolean } | undefined;
     if (!row) return NextResponse.json({ error: "not found" }, { status: 404 });
     return NextResponse.json({
       ingest_token: row.ingest_token,
       monitor_url: process.env.NEXT_PUBLIC_APP_URL ?? "",
       display_name: row.display_name ?? "",
       avatar_emoji: row.avatar_emoji ?? "🧑‍💻",
+      show_in_leaderboard: row.show_in_leaderboard ?? false,
     });
   } finally {
     await pool.end();
@@ -33,7 +34,7 @@ export async function PATCH(req: NextRequest) {
   if (!session) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
   const body = await req.json().catch(() => ({}));
-  const { display_name, avatar_emoji } = body as { display_name?: string; avatar_emoji?: string };
+  const { display_name, avatar_emoji, show_in_leaderboard } = body as { display_name?: string; avatar_emoji?: string; show_in_leaderboard?: boolean };
 
   if (display_name !== undefined) {
     const trimmed = display_name.trim();
@@ -47,11 +48,13 @@ export async function PATCH(req: NextRequest) {
     await pool.query(
       `UPDATE users SET
         display_name = COALESCE($1, display_name),
-        avatar_emoji = COALESCE($2, avatar_emoji)
-       WHERE id = $3`,
+        avatar_emoji = COALESCE($2, avatar_emoji),
+        show_in_leaderboard = CASE WHEN $3::boolean IS NOT NULL THEN $3::boolean ELSE show_in_leaderboard END
+       WHERE id = $4`,
       [
         display_name !== undefined ? (display_name.trim() || null) : null,
         avatar_emoji !== undefined ? avatar_emoji : null,
+        show_in_leaderboard !== undefined ? show_in_leaderboard : null,
         session.sub,
       ]
     );

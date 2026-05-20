@@ -5,6 +5,17 @@ Format: [Semantic Versioning](https://semver.org) · [Keep a Changelog](https://
 
 ---
 
+## [0.6.0] — 2026-05-20
+
+### Added
+- **효율 랭킹 리더보드** — `/leaderboard` 페이지, 주간/월간 탭, 복합 점수(임팩트 40%+비용 30%+캐시 20%+오류없음 10%), 1~3위 메달
+- **랭킹 참여 토글** — 설정 페이지에 opt-in 토글 추가 (기본 off)
+- **Topbar 🏆 링크** — 대시보드 헤더에 리더보드 바로가기
+
+> DB 마이그레이션 필요: `/api/migrate?token=<INGEST_TOKEN>`
+
+---
+
 ## [0.5.0] — 2026-05-20
 
 ### Added
