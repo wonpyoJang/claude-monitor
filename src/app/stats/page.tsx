@@ -5,6 +5,7 @@ import Topbar from "@/app/Topbar";
 import DailyCharts, { type DailyPoint } from "@/app/components/DailyCharts";
 import ExtBarChart from "@/app/components/ExtBarChart";
 import TrendCharts, { type TrendPoint } from "@/app/components/TrendCharts";
+import WeeklyImpactCharts, { type WeeklyImpactPoint } from "@/app/components/WeeklyImpactCharts";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,7 @@ type DayRow = {
 type ExtRow = { ext: string; edits: number; cost: number };
 type ProjectRow = { project: string; cost: number; sessions: number; turns: number };
 type ImpactRow = { impact_score: number; impact_source: string | null; count: number };
+type WeeklyImpactRow = { week: string; impact_score: number; cnt: number; manual_cnt: number };
 
 function fmtCost(n: number) {
   const v = Number(n);
@@ -75,9 +77,10 @@ export default async function StatsPage({
   let extRows: ExtRow[] = [];
   let projectRows: ProjectRow[] = [];
   let impactRows: ImpactRow[] = [];
+  let weeklyImpactRows: WeeklyImpactRow[] = [];
 
   try {
-    const [dailyRes, extRes, projRes, impactRes] = await Promise.all([
+    const [dailyRes, extRes, projRes, impactRes, weeklyImpactRes] = await Promise.all([
       pool.query(
         `SELECT
           to_char(DATE(t.ts), 'YYYY-MM-DD') AS day,
@@ -140,12 +143,28 @@ export default async function StatsPage({
          ORDER BY impact_score`,
         [auth.sub, days]
       ),
+      pool.query(
+        `SELECT
+           to_char(DATE_TRUNC('week', t.ts), 'MM/DD') AS week,
+           t.impact_score::int AS impact_score,
+           COUNT(*)::int AS cnt,
+           COUNT(*) FILTER (WHERE t.impact_source = 'manual')::int AS manual_cnt
+         FROM turns t
+         JOIN devices d ON d.id = t.device_id
+         WHERE d.user_id = $1
+           AND t.ts >= NOW() - INTERVAL '90 days'
+           AND t.impact_score IS NOT NULL
+         GROUP BY DATE_TRUNC('week', t.ts), t.impact_score
+         ORDER BY DATE_TRUNC('week', t.ts), t.impact_score`,
+        [auth.sub]
+      ),
     ]);
 
     rows = dailyRes.rows as DayRow[];
     extRows = extRes.rows as ExtRow[];
     projectRows = projRes.rows as ProjectRow[];
     impactRows = impactRes.rows as ImpactRow[];
+    weeklyImpactRows = weeklyImpactRes.rows as WeeklyImpactRow[];
   } finally {
     await pool.end();
   }
@@ -191,6 +210,40 @@ export default async function StatsPage({
 
   const extTotal = extRows.reduce((s, r) => s + Number(r.cost), 0);
   const projTotal = projectRows.reduce((s, r) => s + r.cost, 0);
+
+  // 주간 impact 차트 데이터 빌드
+  const weeklyImpactMap = new Map<string, { score1: number; score2: number; score3: number; score4: number; score5: number; totalScore: number; totalCnt: number }>();
+  for (const r of weeklyImpactRows) {
+    const entry = weeklyImpactMap.get(r.week) ?? { score1: 0, score2: 0, score3: 0, score4: 0, score5: 0, totalScore: 0, totalCnt: 0 };
+    const key = `score${r.impact_score}` as keyof typeof entry;
+    if (r.impact_score >= 1 && r.impact_score <= 5) {
+      (entry[key] as number) += r.cnt;
+      entry.totalScore += r.impact_score * r.cnt;
+      entry.totalCnt += r.cnt;
+    }
+    weeklyImpactMap.set(r.week, entry);
+  }
+  const weeklyImpactData: WeeklyImpactPoint[] = Array.from(weeklyImpactMap.entries())
+    .slice(-12)
+    .map(([week, d]) => ({
+      week,
+      score1: d.score1,
+      score2: d.score2,
+      score3: d.score3,
+      score4: d.score4,
+      score5: d.score5,
+      avgScore: d.totalCnt > 0 ? d.totalScore / d.totalCnt : null,
+    }));
+
+  // impact 요약 지표
+  const totalImpactAll = impactRows.reduce((s, r) => s + r.count, 0);
+  const manualImpactAll = impactRows.filter((r) => r.impact_source === "manual").reduce((s, r) => s + r.count, 0);
+  const manualRateAll = totalImpactAll > 0 ? manualImpactAll / totalImpactAll : 0;
+  const avgImpactScore = totalImpactAll > 0
+    ? impactRows.reduce((s, r) => s + (r.impact_score * r.count), 0) / totalImpactAll
+    : 0;
+  const highImpactCnt = impactRows.filter((r) => r.impact_score >= 4).reduce((s, r) => s + r.count, 0);
+  const highImpactRate = totalImpactAll > 0 ? highImpactCnt / totalImpactAll : 0;
 
   return (
     <>
@@ -510,6 +563,32 @@ export default async function StatsPage({
                     </span>
                   </div>
                 </>
+              )}
+
+              {/* Self-rating 커버리지 카드 3개 */}
+              <div className="stat-grid stat-grid-4" style={{ marginTop: 32 }}>
+                {[
+                  { label: "수동 마킹률", value: `${(manualRateAll * 100).toFixed(1)}%`, sub: `${manualImpactAll}/${totalImpactAll}` },
+                  { label: "평균 임팩트", value: avgImpactScore > 0 ? avgImpactScore.toFixed(2) : "—", sub: "/ 5.0" },
+                  { label: "고임팩트 비율", value: `${(highImpactRate * 100).toFixed(1)}%`, sub: "4·5점" },
+                ].map((item, i) => (
+                  <div key={i} className="stat-grid-item">
+                    <div className="label" style={{ marginBottom: 8 }}>{item.label}</div>
+                    <div className="stat-num tnum xs">{item.value}</div>
+                    <div className="mono" style={{ fontSize: 11, color: "var(--ink-4)", marginTop: 4 }}>{item.sub}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* 주간 impact 분포 차트 */}
+              {weeklyImpactData.length > 0 && (
+                <div style={{ marginTop: 40 }}>
+                  <div className="section-head" style={{ marginBottom: 0 }}>
+                    <h2>주간 추세</h2>
+                    <span className="meta">최근 90일 기준</span>
+                  </div>
+                  <WeeklyImpactCharts data={weeklyImpactData} />
+                </div>
               )}
             </div>
           );
