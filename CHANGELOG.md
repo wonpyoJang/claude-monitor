@@ -5,6 +5,13 @@ Format: [Semantic Versioning](https://semver.org) · [Keep a Changelog](https://
 
 ---
 
+## [0.4.0] — 2026-05-20
+
+### Added
+- **효율 추세 차트** — `/stats` 전체 추세 탭에 7일 이동평균 cost/turn·캐시 적중률 LineChart, 이전 7일 대비 방향 배지
+
+---
+
 ## [0.3.3] — 2026-05-20
 
 ### Added

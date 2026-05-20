@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
-const APP_VERSION = "0.3.3";
+const APP_VERSION = "0.4.0";
 const SEEN_KEY = "cm_last_seen_version";
 
 export default function Topbar({ fetchedAt }: { fetchedAt?: string }) {
