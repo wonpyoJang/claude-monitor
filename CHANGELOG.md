@@ -5,6 +5,15 @@ Format: [Semantic Versioning](https://semver.org) · [Keep a Changelog](https://
 
 ---
 
+## [0.9.0] — 2026-05-21
+
+### Added
+- **Device 효율 추세 차트** — 캐시 적중률·에러율 30일 라인 차트, 목표 기준선(캐시 50% / 에러 10%) 표시
+- **현재 작업 패널** — Device 상세 우측에 최근 세션 타이틀·cwd·마지막 활동 시각·비용 카드 표시
+- Device 세션 목록에 AI 생성 제목 표시
+
+---
+
 ## [0.8.1] — 2026-05-20
 
 ### Added
