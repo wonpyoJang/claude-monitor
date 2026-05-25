@@ -141,7 +141,9 @@ export default async function DeviceDetailPage({
         `SELECT
           to_char(DATE(ts), 'YYYY-MM-DD') AS day,
           COALESCE(SUM(cost_usd), 0)::float AS cost,
-          COUNT(*)::int AS turns
+          COUNT(*)::int AS turns,
+          COALESCE(AVG(cache_hit_rate), 0)::float AS cache_hit_rate,
+          COALESCE(SUM(error_count)::float / NULLIF(SUM(tool_calls), 0), 0)::float AS error_rate
          FROM turns
          WHERE device_id = $1 AND ts >= NOW() - INTERVAL '30 days'
          GROUP BY DATE(ts)
